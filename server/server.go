@@ -100,6 +100,38 @@ func (s *server) Rename(ctx context.Context, req *pb.RenameRequest) (*pb.RenameR
 	return reply, nil
 }
 
+func (s *server) Reconstruct(ctx context.Context, req *pb.ReconstructRequest) (*pb.ReconstructReply, error) {
+	if len(req.srcs) == 0 {
+		log.Printf("server: reconstruct error (no sources found)")
+		return &pb.ReconstructReply{}, nil
+	}
+
+	if len(req.dsts) == 0 {
+		log.Printf("server: reconstruct error (no dsts found)")
+		return &pb.ReconstructReply{}, nil
+	}
+
+	// Write all source data into temp files
+	tmps = make([]string, len(req.srcs))
+	for src := range req.srcs {
+		// TODO(tnachen): Reuse connections.
+		c, err := Client.New(src.remote)
+		if err != nil {
+			return nil, err
+		}
+		defer c.Close()
+		bytesRead, data, checksum, err := c.Read(context.TODO(), src.name, src.offset, src.length, src.exp_checksum)
+		if err != nil {
+			return nil, err
+		}
+		if tmpFile, err := s.WriteTemp(src, data); err != nil {
+			return nil, err
+		}
+		tmps = Append(tmps, tmpFile)
+	}
+
+}
+
 func (s *server) Remove(ctx context.Context, req *pb.RemoveRequest) (*pb.RemoveReply, error) {
 	dn, fn, err := splitDiskAndFile(req.Name)
 	if err != nil {

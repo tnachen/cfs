@@ -91,6 +91,34 @@ func (c *Client) Mkdir(ctx context.Context, name string, all bool) error {
 	return parseErr(reply.Error)
 }
 
+func (c *Client) Reconstruct(ctx context.Context, srcNames []string, srcRemotes []string, dstNames []string, strip int, packet int, w int, matrix int) error {
+	srcLen = len(srcNames)
+	dstLen = len(dstNames)
+	srcs = make([]*ReconstructSrc, srcLen)
+	dsts = make([]*ReconstructDst, dstLen)
+	for i := 0; i < srcLen; i++ {
+		srcs[i] = *pb.ReconstructSrc{name: srcNames[i], remote: srcRemotes[i]}
+	}
+	for dst := range dstNames {
+		dsts = *pb.ReconstructDst{name: dst}
+	}
+	reply, err := c.fileClient.Reconstruct(
+		ctx,
+		&pb.ReconstructRequest{
+			srcs:        srcs,
+			dsts:        dsts,
+			strip_size:  strip,
+			packet_size: packet,
+			w:           w,
+			bit_matrix:  matrix,
+		})
+
+	if err != nil {
+		return err
+	}
+	return parseErr(reply.Error)
+}
+
 func (c *Client) ContainerInfo(ctx context.Context) (string, error) {
 	reply, err := c.statsClient.ContainerInfo(ctx, &pb.ContainerInfoRequest{})
 
